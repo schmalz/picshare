@@ -5,7 +5,7 @@ import Html exposing (Html, button, div, form, h1, h2, i, img, input, li, strong
 import Html.Attributes exposing (class, disabled, placeholder, src, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
-import Json.Decode exposing (Decoder, bool, int, list, string, succeed)
+import Json.Decode exposing (Decoder, bool, decodeString, int, list, string, succeed)
 import Json.Decode.Pipeline exposing (hardcoded, required)
 import WebSocket
 
@@ -45,6 +45,7 @@ type alias Feed =
 type alias Model =
     { feed : Maybe Feed
     , error : Maybe Http.Error
+    , streamQueue : Feed
     }
 
 
@@ -63,6 +64,7 @@ initialModel : Model
 initialModel =
     { feed = Nothing
     , error = Nothing
+    , streamQueue = []
     }
 
 
@@ -88,7 +90,8 @@ type Msg
     | UpdateComment Id String
     | SaveComment Id
     | LoadFeed (Result Http.Error Feed)
-    | LoadStreamPhoto String
+    | LoadStreamPhoto (Result Json.Decode.Error Photo)
+    | FlushStreamQueue
 
 
 viewLoveButton : Photo -> Html Msg
@@ -268,17 +271,21 @@ update msg model =
         LoadFeed (Err error) ->
             ( { model | error = Just error }, Cmd.none )
 
-        LoadStreamPhoto data ->
-            let
-                _ =
-                    Debug.log "websocket data" data
-            in
+        LoadStreamPhoto (Ok photo) ->
+            ( { model | streamQueue = photo :: model.streamQueue }
+            , Cmd.none
+            )
+
+        LoadStreamPhoto (Err _) ->
+            ( model, Cmd.none )
+
+        FlushStreamQueue ->
             ( model, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    WebSocket.receive LoadStreamPhoto
+    WebSocket.receive (\json -> LoadStreamPhoto (decodeString photoDecoder json))
 
 
 saveNewComment : Photo -> Photo
