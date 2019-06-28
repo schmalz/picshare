@@ -1,4 +1,4 @@
-module Picshare exposing (main)
+module Picshare exposing (main, photoDecoder)
 
 import Browser
 import Html exposing (Html, button, div, form, h1, h2, i, img, input, li, strong, text, ul)
